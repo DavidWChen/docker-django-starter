@@ -20,7 +20,7 @@ clean_db:
 	docker-compose exec db psql -U postgres -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'
 
 init_db: clean_db 
-	docker cp backend/init_db.sql "$(shell docker-compose ps -q db)":/init_db.sql
+	docker cp init_db.sql "$(shell docker-compose ps -q db)":/init_db.sql
 	docker-compose exec db psql -U postgres -f /init_db.sql 
 	docker-compose exec backend /app/src/manage.py migrate
 
