@@ -1,26 +1,32 @@
 default: build
 
-clean:
-
 build: 
 	docker build -t pickmybruin/backend .	
 
 run: 
-	-pkill docker-compose
+	docker-compose down -rmi
 	docker-compose up
 
 restart:
 	docker-compose restart web
 
-ssh: 
-	docker exec -i -t `docker ps -q -l --filter ancestor=pickmybruin/backend:latest` /bin/bash
-
-# usage: make run_command cmd="echo hi"
-run_command:
-	docker exec -i -t `docker ps -q -l --filter ancestor=pickmybruin/backend:latest` /bin/bash -c "$(cmd)"
-
 shell:
-	docker exec -i -t `docker ps -q -l --filter ancestor=pickmybruin/backend:latest` /bin/bash -c "/code/src/manage.py shell_plus"
+	docker-compose exec backend /app/src/manage.py shell_plus
 
 test:
-	docker exec -i -t `docker ps -q -l --filter ancestor=pickmybruin/backend:latest` /bin/bash -c "cd /code/src && ./manage.py test --no-input --parallel "
+	docker-compose exec backend /app/src/manage.py test --no-input --parallel $(args)
+
+clean_db:
+	docker-compose exec db psql -U postgres -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'
+
+init_db: clean_db 
+	docker cp backend/init_db.sql "$(shell docker-compose ps -q db)":/init_db.sql
+	docker-compose exec db psql -U postgres -f /init_db.sql 
+	docker-compose exec backend /app/src/manage.py migrate
+
+backup_db:
+	docker-compose exec db pg_dumpall -c -U postgres > badchess_dump_`date +%d-%m-%Y"_"%H_%M_%S`.sql
+
+install_package:
+	docker-compose exec backend pip3 install $(pkg)
+	docker-compose exec backend pip3 freeze | tail -n +1 > backend/requirements.txt
